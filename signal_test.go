@@ -10,13 +10,9 @@ func TestSignal1(t *testing.T) {
 	bar := func() string {
 		return "bar"
 	}
-	baz := func() []int {
-		return []int{1, 2, 3}
-	}
 	a.Load(func(loader Loader) {
 		loader.Emit("foo", &foo)
 		loader.Emit("bar", &bar)
-		loader.Emit("baz", &baz)
 	})
 
 	fooEmitted := false
@@ -34,7 +30,6 @@ func TestSignal1(t *testing.T) {
 			}
 			barEmitted = true
 		})
-		loader.Listen("baz", func(is []int) {})
 	})
 	a.FinishLoad()
 
@@ -46,7 +41,6 @@ func TestSignal1(t *testing.T) {
 	if !barEmitted {
 		t.Fatal("bar not emitted")
 	}
-	baz()
 }
 
 func TestSignal2(t *testing.T) {
@@ -164,6 +158,33 @@ func TestSignal5(t *testing.T) {
 				t.Fatal("should panic")
 			}
 			if err.(string) != "foo not listened" {
+				t.Fatal(err)
+			}
+		}()
+		a.FinishLoad()
+	}()
+}
+
+func TestSignal6(t *testing.T) {
+	a := New()
+	a.Load(func(loader Loader) {
+		type t struct {
+			int
+			string
+		}
+		f := func() t {
+			return t{42, "foo"}
+		}
+		loader.Emit("foo", &f)
+		loader.Listen("foo", func(t) {})
+	})
+	func() {
+		defer func() {
+			err := recover()
+			if err == nil {
+				t.Fatal("should panic")
+			}
+			if err.(string) != "no handler for emitter type *func() app.t" {
 				t.Fatal(err)
 			}
 		}()

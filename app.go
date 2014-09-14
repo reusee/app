@@ -82,6 +82,37 @@ func (a *Application) Load(module interface{}) {
 	}
 }
 
+var signalHandlers = make(map[reflect.Type]func(emit interface{}, listens []interface{}))
+
+func SignalHandler(t interface{}, handler func(emit interface{}, listens []interface{})) {
+	signalHandlers[reflect.TypeOf(t)] = handler
+}
+
+func init() {
+	SignalHandler((*func() int)(nil), func(emit interface{}, listens []interface{}) {
+		emitPtr := emit.(*func() int)
+		e := *emitPtr
+		*emitPtr = func() (ret int) {
+			ret = e()
+			for _, listen := range listens {
+				listen.(func(int))(ret)
+			}
+			return
+		}
+	})
+	SignalHandler((*func() string)(nil), func(emit interface{}, listens []interface{}) {
+		emitPtr := emit.(*func() string)
+		e := *emitPtr
+		*emitPtr = func() (ret string) {
+			ret = e()
+			for _, listen := range listens {
+				listen.(func(string))(ret)
+			}
+			return
+		}
+	})
+}
+
 func (a *Application) FinishLoad() {
 	// match provides and requires
 	for name, provide := range a.provides {
@@ -105,44 +136,29 @@ func (a *Application) FinishLoad() {
 
 	// handle signals
 	for name, emit := range a.emits {
-		emitType := reflect.TypeOf(emit).Elem()
+		emitType := reflect.TypeOf(emit)
 		listens := a.listens[name]
 		if len(listens) == 0 {
 			panic(sp("%s not listened", name))
 		}
 		for _, listen := range listens {
 			listenType := reflect.TypeOf(listen)
-			if emitType.NumOut() != listenType.NumIn() {
-				panic(sp("%s not match, emit %v, listen %v", name, emitType, listenType))
+			if emitType.Elem().NumOut() != listenType.NumIn() {
+				panic(sp("%s not match, emit %v, listen %v", name, emitType.Elem(), listenType))
 			}
-			for i := 0; i < emitType.NumOut(); i++ {
-				if emitType.Out(i) != listenType.In(i) {
-					panic(sp("%s not match at arg #%d, emit %v, listen %v", name, i, emitType.Out(i), listenType.In(i)))
+			for i := 0; i < emitType.Elem().NumOut(); i++ {
+				if emitType.Elem().Out(i) != listenType.In(i) {
+					panic(sp("%s not match at arg #%d, emit %v, listen %v", name, i, emitType.Elem().Out(i), listenType.In(i)))
 				}
 			}
 		}
-		switch emit := emit.(type) {
-		// fast paths
-		case *func() int:
-			e := *emit
-			*emit = func() (ret int) {
-				ret = e()
-				for _, listen := range listens {
-					listen.(func(int))(ret)
-				}
-				return
-			}
-		case *func() string:
-			e := *emit
-			*emit = func() (ret string) {
-				ret = e()
-				for _, listen := range listens {
-					listen.(func(string))(ret)
-				}
-				return
-			}
-		// generic with reflection
-		default:
+		handler, ok := signalHandlers[emitType]
+		if !ok {
+			panic(sp("no handler for emitter type %v", emitType))
+		}
+		handler(emit, listens)
+		/*
+			// generic with reflection
 			listenValues := make([]reflect.Value, 0, len(listens))
 			for _, listen := range listens {
 				listenValues = append(listenValues, reflect.ValueOf(listen))
@@ -155,6 +171,6 @@ func (a *Application) FinishLoad() {
 				}
 				return
 			}))
-		}
+		*/
 	}
 }
