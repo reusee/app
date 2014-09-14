@@ -121,27 +121,26 @@ func (a *Application) FinishLoad() {
 				}
 			}
 		}
-		var wrapped reflect.Value
 		switch emit := emit.(type) {
 		// fast paths
 		case *func() int:
 			e := *emit
-			wrapped = reflect.ValueOf(func() (ret int) {
+			*emit = func() (ret int) {
 				ret = e()
 				for _, listen := range listens {
 					listen.(func(int))(ret)
 				}
 				return
-			})
+			}
 		case *func() string:
 			e := *emit
-			wrapped = reflect.ValueOf(func() (ret string) {
+			*emit = func() (ret string) {
 				ret = e()
 				for _, listen := range listens {
 					listen.(func(string))(ret)
 				}
 				return
-			})
+			}
 		// generic with reflection
 		default:
 			listenValues := make([]reflect.Value, 0, len(listens))
@@ -149,14 +148,13 @@ func (a *Application) FinishLoad() {
 				listenValues = append(listenValues, reflect.ValueOf(listen))
 			}
 			emitValue := reflect.ValueOf(reflect.ValueOf(emit).Elem().Interface())
-			wrapped = reflect.MakeFunc(emitType, func(args []reflect.Value) (out []reflect.Value) {
+			reflect.ValueOf(emit).Elem().Set(reflect.MakeFunc(emitType, func(args []reflect.Value) (out []reflect.Value) {
 				out = emitValue.Call(args)
 				for _, listen := range listenValues {
 					listen.Call(out)
 				}
 				return
-			})
+			}))
 		}
-		reflect.ValueOf(emit).Elem().Set(wrapped)
 	}
 }

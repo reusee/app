@@ -37,3 +37,21 @@ func BenchmarkStringSignal(b *testing.B) {
 		f()
 	}
 }
+
+func BenchmarkStructSignal(b *testing.B) {
+	a := New()
+	f := func() struct{ int } {
+		return struct{ int }{42}
+	}
+	a.Load(func(loader Loader) {
+		loader.Emit("foo", &f)
+	})
+	a.Load(func(loader Loader) {
+		loader.Listen("foo", func(struct{ int }) {})
+	})
+	a.FinishLoad()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		f()
+	}
+}

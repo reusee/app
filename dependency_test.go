@@ -14,10 +14,10 @@ func TestDep1(t *testing.T) {
 		defer func() {
 			err := recover()
 			if err == nil {
-				t.Fatal()
+				t.Fatal("should panic")
 			}
 			if err.(string) != "int is not a module" {
-				t.Fatal()
+				t.Fatal(err)
 			}
 		}()
 		a.Load(42)
@@ -28,10 +28,10 @@ func TestDep1(t *testing.T) {
 		defer func() {
 			err := recover()
 			if err == nil {
-				t.Fatal()
+				t.Fatal("should panic")
 			}
 			if err.(string) != "module *app.moduleBaz: multiple provides of bar" {
-				t.Fatal()
+				t.Fatal(err)
 			}
 		}()
 		a.Load(new(moduleBaz))
@@ -42,10 +42,10 @@ func TestDep1(t *testing.T) {
 		defer func() {
 			err := recover()
 			if err == nil {
-				t.Fatal()
+				t.Fatal("should panic")
 			}
 			if err.(string) != "module *app.moduleQux: provided qux is not a function" {
-				t.Fatal()
+				t.Fatal(err)
 			}
 		}()
 		a.Load(new(moduleQux))
@@ -56,10 +56,10 @@ func TestDep1(t *testing.T) {
 		defer func() {
 			err := recover()
 			if err == nil {
-				t.Fatal()
+				t.Fatal("should panic")
 			}
 			if err.(string) != "module *app.moduleQuux: required quux is not a pointer to function" {
-				t.Fatal()
+				t.Fatal(err)
 			}
 		}()
 		a.Load(new(moduleQuux))
@@ -68,7 +68,7 @@ func TestDep1(t *testing.T) {
 	a.FinishLoad()
 
 	if foo.bar() != 42 {
-		t.Fatal()
+		t.Fatal("foo.bar() is not 42")
 	}
 }
 
@@ -117,10 +117,10 @@ func TestDep2(t *testing.T) {
 		defer func() {
 			err := recover()
 			if err == nil {
-				t.Fatal()
+				t.Fatal("should panic")
 			}
 			if err.(string) != "bar is not required by any module" {
-				t.Fatal()
+				t.Fatal(err)
 			}
 		}()
 		a.FinishLoad()
@@ -135,10 +135,10 @@ func TestDep3(t *testing.T) {
 		defer func() {
 			err := recover()
 			if err == nil {
-				t.Fatal()
+				t.Fatal("should panic")
 			}
 			if err.(string) != "bar not match, func() int provided, func() required" {
-				t.Fatal()
+				t.Fatal(err)
 			}
 		}()
 		a.FinishLoad()
@@ -162,10 +162,10 @@ func TestDep4(t *testing.T) {
 		defer func() {
 			err := recover()
 			if err == nil {
-				t.Fatal()
+				t.Fatal("should panic")
 			}
 			if err.(string) != "bar not provided" {
-				t.Fatal()
+				t.Fatal(err)
 			}
 		}()
 		a.FinishLoad()
