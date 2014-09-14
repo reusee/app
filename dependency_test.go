@@ -2,13 +2,26 @@ package app
 
 import "testing"
 
-func TestLoad1(t *testing.T) {
+func TestDep1(t *testing.T) {
 	a := New()
 
 	// module load
 	foo := new(moduleFoo)
 	a.Load(foo)
 	a.Load(new(moduleBar))
+
+	func() {
+		defer func() {
+			err := recover()
+			if err == nil {
+				t.Fatal()
+			}
+			if err.(string) != "int is not a module" {
+				t.Fatal()
+			}
+		}()
+		a.Load(42)
+	}()
 
 	// multiple provides
 	func() {
@@ -97,7 +110,7 @@ func (m *moduleQuux) Load(loader Loader) {
 	loader.Require("quux", 24)
 }
 
-func TestLoad2(t *testing.T) {
+func TestDep2(t *testing.T) {
 	a := New()
 	a.Load(new(moduleBar))
 	func() {
@@ -114,7 +127,7 @@ func TestLoad2(t *testing.T) {
 	}()
 }
 
-func TestLoad3(t *testing.T) {
+func TestDep3(t *testing.T) {
 	a := New()
 	a.Load(new(moduleBar))
 	a.Load(new(moduleA))
@@ -139,7 +152,7 @@ func (m *moduleA) Load(loader Loader) {
 	loader.Require("bar", &f)
 }
 
-func TestLoad4(t *testing.T) {
+func TestDep4(t *testing.T) {
 	a := New()
 	a.Load(func(loader Loader) {
 		var f func()

@@ -12,12 +12,16 @@ var (
 type Application struct {
 	provides map[string]interface{}
 	requires map[string][]interface{}
+	emits    map[string]interface{}
+	listens  map[string][]interface{}
 }
 
 func New() *Application {
 	app := &Application{
 		provides: make(map[string]interface{}),
 		requires: make(map[string][]interface{}),
+		emits:    make(map[string]interface{}),
+		listens:  make(map[string][]interface{}),
 	}
 	return app
 }
@@ -25,6 +29,8 @@ func New() *Application {
 type Loader struct {
 	Provide func(name string, fn interface{})
 	Require func(name string, fn interface{})
+	Emit    func(name string, fn interface{})
+	Listen  func(name string, fn interface{})
 }
 
 func (a *Application) Load(module interface{}) {
@@ -47,6 +53,23 @@ func (a *Application) Load(module interface{}) {
 			}
 			a.requires[name] = append(a.requires[name], fn)
 		},
+		Emit: func(name string, fn interface{}) {
+			t := reflect.TypeOf(fn)
+			if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Func {
+				panic(sp("module %v: emitter %s is not a pointer to function", modType, name))
+			}
+			if _, in := a.emits[name]; in {
+				panic(sp("module %v: multiple emitter %s", modType, name))
+			}
+			a.emits[name] = fn
+		},
+		Listen: func(name string, fn interface{}) {
+			t := reflect.TypeOf(fn)
+			if t.Kind() != reflect.Func {
+				panic(sp("module %v: listener %s is not a function", modType, name))
+			}
+			a.listens[name] = append(a.listens[name], fn)
+		},
 	}
 	if mod, ok := module.(interface {
 		Load(Loader)
@@ -54,6 +77,8 @@ func (a *Application) Load(module interface{}) {
 		mod.Load(loader)
 	} else if mod, ok := module.(func(Loader)); ok {
 		mod(loader)
+	} else {
+		panic(sp("%v is not a module", modType))
 	}
 }
 
@@ -77,6 +102,34 @@ func (a *Application) FinishLoad() {
 	for name, _ := range a.requires {
 		panic(sp("%s not provided", name))
 	}
-}
 
-//TODO emit and listen
+	// handle signals
+	for name, emit := range a.emits {
+		emitType := reflect.TypeOf(emit).Elem()
+		listenValues := make([]reflect.Value, 0, len(a.listens[name]))
+		if len(a.listens[name]) == 0 {
+			panic(sp("%s not listened", name))
+		}
+		for _, listen := range a.listens[name] {
+			listenType := reflect.TypeOf(listen)
+			if emitType.NumOut() != listenType.NumIn() {
+				panic(sp("%s not match, emit %v, listen %v", name, emitType, listenType))
+			}
+			for i := 0; i < emitType.NumOut(); i++ {
+				if emitType.Out(i) != listenType.In(i) {
+					panic(sp("%s not match at arg #%d, emit %v, listen %v", name, i, emitType.Out(i), listenType.In(i)))
+				}
+			}
+			listenValues = append(listenValues, reflect.ValueOf(listen))
+		}
+		emitValue := reflect.ValueOf(reflect.ValueOf(emit).Elem().Interface())
+		emitWrapped := func(args []reflect.Value) (out []reflect.Value) {
+			out = emitValue.Call(args)
+			for _, listen := range listenValues {
+				listen.Call(out)
+			}
+			return
+		}
+		reflect.ValueOf(emit).Elem().Set(reflect.MakeFunc(emitType, emitWrapped))
+	}
+}
