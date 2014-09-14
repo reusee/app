@@ -84,12 +84,12 @@ func (a *Application) Load(module interface{}) {
 
 var signalHandlers = make(map[reflect.Type]func(emit interface{}, listens []interface{}))
 
-func SignalHandler(t interface{}, handler func(emit interface{}, listens []interface{})) {
+func AddSignalType(t interface{}, handler func(emit interface{}, listens []interface{})) {
 	signalHandlers[reflect.TypeOf(t)] = handler
 }
 
 func init() {
-	SignalHandler((*func() int)(nil), func(emit interface{}, listens []interface{}) {
+	AddSignalType((*func() int)(nil), func(emit interface{}, listens []interface{}) {
 		emitPtr := emit.(*func() int)
 		e := *emitPtr
 		*emitPtr = func() (ret int) {
@@ -100,7 +100,7 @@ func init() {
 			return
 		}
 	})
-	SignalHandler((*func() string)(nil), func(emit interface{}, listens []interface{}) {
+	AddSignalType((*func() string)(nil), func(emit interface{}, listens []interface{}) {
 		emitPtr := emit.(*func() string)
 		e := *emitPtr
 		*emitPtr = func() (ret string) {

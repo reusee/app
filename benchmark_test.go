@@ -39,7 +39,7 @@ func BenchmarkStringSignal(b *testing.B) {
 }
 
 func BenchmarkStructSignal(b *testing.B) {
-	SignalHandler((*func() struct{ int })(nil), func(emit interface{}, listens []interface{}) {
+	AddSignalType((*func() struct{ int })(nil), func(emit interface{}, listens []interface{}) {
 		emitPtr := emit.(*func() struct{ int })
 		e := *emitPtr
 		*emitPtr = func() (ret struct{ int }) {
