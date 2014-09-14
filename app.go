@@ -29,28 +29,31 @@ type Loader struct {
 
 func (a *Application) Load(module interface{}) {
 	modType := reflect.TypeOf(module)
+	loader := Loader{
+		Provide: func(name string, fn interface{}) {
+			if _, in := a.provides[name]; in {
+				panic(sp("module %v: multiple provides of %s", modType, name))
+			}
+			t := reflect.TypeOf(fn)
+			if t.Kind() != reflect.Func {
+				panic(sp("module %v: provided %s is not a function", modType, name))
+			}
+			a.provides[name] = fn
+		},
+		Require: func(name string, fn interface{}) {
+			t := reflect.TypeOf(fn)
+			if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Func {
+				panic(sp("module %v: required %s is not a pointer to function", modType, name))
+			}
+			a.requires[name] = append(a.requires[name], fn)
+		},
+	}
 	if mod, ok := module.(interface {
 		Load(Loader)
 	}); ok {
-		mod.Load(Loader{
-			Provide: func(name string, fn interface{}) {
-				if _, in := a.provides[name]; in {
-					panic(sp("module %v: multiple provides of %s", modType, name))
-				}
-				t := reflect.TypeOf(fn)
-				if t.Kind() != reflect.Func {
-					panic(sp("module %v: provided %s is not a function", modType, name))
-				}
-				a.provides[name] = fn
-			},
-			Require: func(name string, fn interface{}) {
-				t := reflect.TypeOf(fn)
-				if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Func {
-					panic(sp("module %v: required %s is not a pointer to function", modType, name))
-				}
-				a.requires[name] = append(a.requires[name], fn)
-			},
-		})
+		mod.Load(loader)
+	} else if mod, ok := module.(func(Loader)); ok {
+		mod(loader)
 	}
 }
 
@@ -69,6 +72,10 @@ func (a *Application) FinishLoad() {
 			}
 			reflect.ValueOf(require).Elem().Set(provideValue)
 		}
+		delete(a.requires, name)
+	}
+	for name, _ := range a.requires {
+		panic(sp("%s not provided", name))
 	}
 }
 

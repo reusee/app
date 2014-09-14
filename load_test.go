@@ -138,3 +138,23 @@ func (m *moduleA) Load(loader Loader) {
 	var f func()
 	loader.Require("bar", &f)
 }
+
+func TestLoad4(t *testing.T) {
+	a := New()
+	a.Load(func(loader Loader) {
+		var f func()
+		loader.Require("bar", &f)
+	})
+	func() {
+		defer func() {
+			err := recover()
+			if err == nil {
+				t.Fatal()
+			}
+			if err.(string) != "bar not provided" {
+				t.Fatal()
+			}
+		}()
+		a.FinishLoad()
+	}()
+}
