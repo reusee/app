@@ -106,11 +106,11 @@ func (a *Application) FinishLoad() {
 	// handle signals
 	for name, emit := range a.emits {
 		emitType := reflect.TypeOf(emit).Elem()
-		listenValues := make([]reflect.Value, 0, len(a.listens[name]))
-		if len(a.listens[name]) == 0 {
+		listens := a.listens[name]
+		if len(listens) == 0 {
 			panic(sp("%s not listened", name))
 		}
-		for _, listen := range a.listens[name] {
+		for _, listen := range listens {
 			listenType := reflect.TypeOf(listen)
 			if emitType.NumOut() != listenType.NumIn() {
 				panic(sp("%s not match, emit %v, listen %v", name, emitType, listenType))
@@ -120,16 +120,43 @@ func (a *Application) FinishLoad() {
 					panic(sp("%s not match at arg #%d, emit %v, listen %v", name, i, emitType.Out(i), listenType.In(i)))
 				}
 			}
-			listenValues = append(listenValues, reflect.ValueOf(listen))
 		}
-		emitValue := reflect.ValueOf(reflect.ValueOf(emit).Elem().Interface())
-		emitWrapped := func(args []reflect.Value) (out []reflect.Value) {
-			out = emitValue.Call(args)
-			for _, listen := range listenValues {
-				listen.Call(out)
+		var wrapped reflect.Value
+		switch emit := emit.(type) {
+		// fast paths
+		case *func() int:
+			e := *emit
+			wrapped = reflect.ValueOf(func() (ret int) {
+				ret = e()
+				for _, listen := range listens {
+					listen.(func(int))(ret)
+				}
+				return
+			})
+		case *func() string:
+			e := *emit
+			wrapped = reflect.ValueOf(func() (ret string) {
+				ret = e()
+				for _, listen := range listens {
+					listen.(func(string))(ret)
+				}
+				return
+			})
+		// generic with reflection
+		default:
+			listenValues := make([]reflect.Value, 0, len(listens))
+			for _, listen := range listens {
+				listenValues = append(listenValues, reflect.ValueOf(listen))
 			}
-			return
+			emitValue := reflect.ValueOf(reflect.ValueOf(emit).Elem().Interface())
+			wrapped = reflect.MakeFunc(emitType, func(args []reflect.Value) (out []reflect.Value) {
+				out = emitValue.Call(args)
+				for _, listen := range listenValues {
+					listen.Call(out)
+				}
+				return
+			})
 		}
-		reflect.ValueOf(emit).Elem().Set(reflect.MakeFunc(emitType, emitWrapped))
+		reflect.ValueOf(emit).Elem().Set(wrapped)
 	}
 }

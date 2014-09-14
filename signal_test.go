@@ -10,9 +10,13 @@ func TestSignal1(t *testing.T) {
 	bar := func() string {
 		return "bar"
 	}
+	baz := func() []int {
+		return []int{1, 2, 3}
+	}
 	a.Load(func(loader Loader) {
 		loader.Emit("foo", &foo)
 		loader.Emit("bar", &bar)
+		loader.Emit("baz", &baz)
 	})
 
 	fooEmitted := false
@@ -30,6 +34,7 @@ func TestSignal1(t *testing.T) {
 			}
 			barEmitted = true
 		})
+		loader.Listen("baz", func(is []int) {})
 	})
 	a.FinishLoad()
 
@@ -41,6 +46,7 @@ func TestSignal1(t *testing.T) {
 	if !barEmitted {
 		t.Fatal()
 	}
+	baz()
 }
 
 func TestSignal2(t *testing.T) {
