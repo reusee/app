@@ -88,31 +88,6 @@ func AddSignalType(t interface{}, handler func(emit interface{}, listens []inter
 	signalHandlers[reflect.TypeOf(t)] = handler
 }
 
-func init() {
-	AddSignalType((*func() int)(nil), func(emit interface{}, listens []interface{}) {
-		emitPtr := emit.(*func() int)
-		e := *emitPtr
-		*emitPtr = func() (ret int) {
-			ret = e()
-			for _, listen := range listens {
-				listen.(func(int))(ret)
-			}
-			return
-		}
-	})
-	AddSignalType((*func() string)(nil), func(emit interface{}, listens []interface{}) {
-		emitPtr := emit.(*func() string)
-		e := *emitPtr
-		*emitPtr = func() (ret string) {
-			ret = e()
-			for _, listen := range listens {
-				listen.(func(string))(ret)
-			}
-			return
-		}
-	})
-}
-
 func (a *Application) FinishLoad() {
 	// match provides and requires
 	for name, provide := range a.provides {
