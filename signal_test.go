@@ -10,13 +10,18 @@ func TestSignal1(t *testing.T) {
 	bar := func() string {
 		return "bar"
 	}
+	baz := func() bool {
+		return true
+	}
 	a.Load(func(loader Loader) {
 		loader.Emit("foo", &foo)
 		loader.Emit("bar", &bar)
+		loader.Emit("baz", &baz)
 	})
 
 	fooEmitted := false
 	barEmitted := false
+	bazEmitted := false
 	a.Load(func(loader Loader) {
 		loader.Listen("foo", func(n int) {
 			if n != 42 {
@@ -30,6 +35,12 @@ func TestSignal1(t *testing.T) {
 			}
 			barEmitted = true
 		})
+		loader.Listen("baz", func(b bool) {
+			if !b {
+				t.Fatal("baz() is not true")
+			}
+			bazEmitted = true
+		})
 	})
 	a.FinishLoad()
 
@@ -40,6 +51,10 @@ func TestSignal1(t *testing.T) {
 	bar()
 	if !barEmitted {
 		t.Fatal("bar not emitted")
+	}
+	baz()
+	if !bazEmitted {
+		t.Fatal("baz not emitted")
 	}
 }
 

@@ -39,13 +39,11 @@ func BenchmarkStringSignal(b *testing.B) {
 }
 
 func BenchmarkStructSignal(b *testing.B) {
-	AddSignalType((*func() struct{ int })(nil), func(emit interface{}, listens []interface{}) {
-		emitPtr := emit.(*func() struct{ int })
-		e := *emitPtr
-		*emitPtr = func() (ret struct{ int }) {
-			ret = e()
-			for _, listen := range listens {
-				listen.(func(struct{ int }))(ret)
+	AddSignalType((*func() struct{ int })(nil), func(emit interface{}, listens []interface{}) interface{} {
+		return func() (ret struct{ int }) {
+			ret = emit.(func() struct{ int })()
+			for _, l := range listens {
+				l.(func(struct{ int }))(ret)
 			}
 			return
 		}
@@ -60,6 +58,22 @@ func BenchmarkStructSignal(b *testing.B) {
 	})
 	a.Load(func(loader Loader) {
 		loader.Listen("foo", func(struct{ int }) {})
+	})
+	a.FinishLoad()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		f()
+	}
+}
+
+func BenchmarkBoolSignal(b *testing.B) {
+	a := New()
+	f := func() bool {
+		return true
+	}
+	a.Load(func(loader Loader) {
+		loader.Emit("foo", &f)
+		loader.Listen("foo", func(b bool) {})
 	})
 	a.FinishLoad()
 	b.ResetTimer()

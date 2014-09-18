@@ -84,8 +84,11 @@ func (a *Application) Load(module interface{}) {
 
 var signalHandlers = make(map[reflect.Type]func(emit interface{}, listens []interface{}))
 
-func AddSignalType(t interface{}, handler func(emit interface{}, listens []interface{})) {
-	signalHandlers[reflect.TypeOf(t)] = handler
+func AddSignalType(t interface{}, handler func(emit interface{}, listens []interface{}) interface{}) {
+	signalHandlers[reflect.TypeOf(t)] = func(emit interface{}, listens []interface{}) {
+		fn := handler(reflect.ValueOf(emit).Elem().Interface(), listens)
+		reflect.ValueOf(emit).Elem().Set(reflect.ValueOf(fn))
+	}
 }
 
 func (a *Application) FinishLoad() {
