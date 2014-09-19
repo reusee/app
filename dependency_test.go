@@ -37,20 +37,6 @@ func TestDep1(t *testing.T) {
 		a.Load(new(moduleBaz))
 	}()
 
-	// not providing function
-	func() {
-		defer func() {
-			err := recover()
-			if err == nil {
-				t.Fatal("should panic")
-			}
-			if err.(string) != "module *app.moduleQux: provided qux is not a function" {
-				t.Fatal(err)
-			}
-		}()
-		a.Load(new(moduleQux))
-	}()
-
 	// not requiring function
 	func() {
 		defer func() {
@@ -58,7 +44,7 @@ func TestDep1(t *testing.T) {
 			if err == nil {
 				t.Fatal("should panic")
 			}
-			if err.(string) != "module *app.moduleQuux: required quux is not a pointer to function" {
+			if err.(string) != "module *app.moduleQuux: required quux is not a pointer" {
 				t.Fatal(err)
 			}
 		}()
@@ -170,4 +156,20 @@ func TestDep4(t *testing.T) {
 		}()
 		a.FinishLoad()
 	}()
+}
+
+func TestDep5(t *testing.T) {
+	a := New()
+	a.Load(func(loader Loader) {
+		i := 42
+		loader.Provide("foo", i)
+	})
+	var i int
+	a.Load(func(loader Loader) {
+		loader.Require("foo", &i)
+	})
+	a.FinishLoad()
+	if i != 42 {
+		t.Fatal("i is not 42")
+	}
 }

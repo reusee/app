@@ -40,16 +40,12 @@ func (a *Application) Load(module interface{}) {
 			if _, in := a.provides[name]; in {
 				panic(sp("module %v: multiple provides of %s", modType, name))
 			}
-			t := reflect.TypeOf(fn)
-			if t.Kind() != reflect.Func {
-				panic(sp("module %v: provided %s is not a function", modType, name))
-			}
 			a.provides[name] = fn
 		},
 		Require: func(name string, fn interface{}) {
 			t := reflect.TypeOf(fn)
-			if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Func {
-				panic(sp("module %v: required %s is not a pointer to function", modType, name))
+			if t.Kind() != reflect.Ptr {
+				panic(sp("module %v: required %s is not a pointer", modType, name))
 			}
 			a.requires[name] = append(a.requires[name], fn)
 		},
