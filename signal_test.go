@@ -42,7 +42,7 @@ func TestSignal1(t *testing.T) {
 			bazEmitted = true
 		})
 	})
-	a.FinishLoad()
+	a.Run()
 
 	foo()
 	if !fooEmitted {
@@ -111,7 +111,7 @@ func TestSignal2(t *testing.T) {
 	a.Load(func(loader Loader) {
 		loader.Listen("foo", func(int) {})
 	})
-	a.FinishLoad()
+	a.Run()
 }
 
 func TestSignal3(t *testing.T) {
@@ -133,7 +133,7 @@ func TestSignal3(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.FinishLoad()
+		a.Run()
 	}()
 }
 
@@ -156,7 +156,7 @@ func TestSignal4(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.FinishLoad()
+		a.Run()
 	}()
 }
 
@@ -176,7 +176,7 @@ func TestSignal5(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.FinishLoad()
+		a.Run()
 	}()
 }
 
@@ -203,6 +203,6 @@ func TestSignal6(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.FinishLoad()
+		a.Run()
 	}()
 }

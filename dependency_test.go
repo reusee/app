@@ -51,7 +51,7 @@ func TestDep1(t *testing.T) {
 		a.Load(new(moduleQuux))
 	}()
 
-	a.FinishLoad()
+	a.Run()
 
 	if foo.bar() != 42 {
 		t.Fatal("foo.bar() is not 42")
@@ -109,7 +109,7 @@ func TestDep2(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.FinishLoad()
+		a.Run()
 	}()
 }
 
@@ -127,7 +127,7 @@ func TestDep3(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.FinishLoad()
+		a.Run()
 	}()
 }
 
@@ -154,7 +154,7 @@ func TestDep4(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.FinishLoad()
+		a.Run()
 	}()
 }
 
@@ -168,7 +168,7 @@ func TestDep5(t *testing.T) {
 	a.Load(func(loader Loader) {
 		loader.Require("foo", &i)
 	})
-	a.FinishLoad()
+	a.Run()
 	if i != 42 {
 		t.Fatal("i is not 42")
 	}

@@ -87,7 +87,7 @@ func AddSignalType(t interface{}, handler func(emit interface{}, listens []inter
 	}
 }
 
-func (a *Application) FinishLoad() {
+func (a *Application) Run() {
 	// match provides and requires
 	for name, provide := range a.provides {
 		requires, ok := a.requires[name]
