@@ -14,6 +14,7 @@ type Application struct {
 	requires map[string][]interface{}
 	emits    map[string]interface{}
 	listens  map[string][]interface{}
+	runs     []func()
 }
 
 func New() *Application {
@@ -71,10 +72,17 @@ func (a *Application) Load(module interface{}) {
 		Load(Loader)
 	}); ok {
 		mod.Load(loader)
-	} else if mod, ok := module.(func(Loader)); ok {
+	}
+	if mod, ok := module.(interface {
+		Run()
+	}); ok {
+		a.runs = append(a.runs, mod.Run)
+	}
+	if mod, ok := module.(func(Loader)); ok {
 		mod(loader)
-	} else {
-		panic(sp("%v is not a module", modType))
+	}
+	if mod, ok := module.(func()); ok {
+		a.runs = append(a.runs, mod)
 	}
 }
 
@@ -146,5 +154,10 @@ func (a *Application) Run() {
 				return
 			}))
 		*/
+	}
+
+	// run
+	for _, fn := range a.runs {
+		fn()
 	}
 }
