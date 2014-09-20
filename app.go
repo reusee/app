@@ -15,6 +15,7 @@ type Application struct {
 	defs     map[string]interface{}
 	impls    map[string][]interface{}
 	runs     []func()
+	clears   []func()
 }
 
 func New() *Application {
@@ -80,9 +81,6 @@ func (a *Application) Load(module interface{}) {
 	}
 	if mod, ok := module.(func(Loader)); ok {
 		mod(loader)
-	}
-	if mod, ok := module.(func()); ok {
-		a.runs = append(a.runs, mod)
 	}
 }
 
@@ -150,4 +148,16 @@ func (a *Application) Run() {
 	for _, fn := range a.runs {
 		fn()
 	}
+	// clear
+	for _, fn := range a.clears {
+		fn()
+	}
+}
+
+func (a *Application) OnRun(fn func()) {
+	a.runs = append(a.runs, fn)
+}
+
+func (a *Application) OnClear(fn func()) {
+	a.clears = append(a.clears, fn)
 }

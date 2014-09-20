@@ -10,7 +10,7 @@ func TestDep1(t *testing.T) {
 	a.Load(foo)
 	a.Load(new(moduleBar))
 	runned := false
-	a.Load(func() {
+	a.OnRun(func() {
 		runned = true
 	})
 
