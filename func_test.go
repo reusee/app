@@ -8,11 +8,13 @@ func TestFunc(t *testing.T) {
 	var bar func(string)
 	var baz func(bool)
 	var qux func(float64)
+	var quux func()
 	a.Load(func(loader Loader) {
 		loader.Define("foo", &foo)
 		loader.Define("bar", &bar)
 		loader.Define("baz", &baz)
 		loader.Define("qux", &qux)
+		loader.Define("quux", &quux)
 	})
 
 	fooCalled := false
@@ -44,8 +46,9 @@ func TestFunc(t *testing.T) {
 			}
 			quxCalled = true
 		})
+		loader.Implement("quux", func() {})
 	})
-	a.Run()
+	a.FinishLoad()
 
 	foo(42)
 	if !fooCalled {
@@ -63,6 +66,7 @@ func TestFunc(t *testing.T) {
 	if !quxCalled {
 		t.Fatal("qux no called")
 	}
+	quux()
 }
 
 func TestFunc2(t *testing.T) {
@@ -118,7 +122,7 @@ func TestFunc2(t *testing.T) {
 	a.Load(func(loader Loader) {
 		loader.Implement("foo", func(int) {})
 	})
-	a.Run()
+	a.FinishLoad()
 }
 
 func TestFunc3(t *testing.T) {
@@ -140,7 +144,7 @@ func TestFunc3(t *testing.T) {
 				panic(err)
 			}
 		}()
-		a.Run()
+		a.FinishLoad()
 	}()
 }
 
@@ -163,7 +167,7 @@ func TestFunc4(t *testing.T) {
 				panic(err)
 			}
 		}()
-		a.Run()
+		a.FinishLoad()
 	}()
 }
 
@@ -183,6 +187,6 @@ func TestFunc5(t *testing.T) {
 				panic(err)
 			}
 		}()
-		a.Run()
+		a.FinishLoad()
 	}()
 }

@@ -14,8 +14,6 @@ type Application struct {
 	requires map[string][]interface{}
 	defs     map[string]interface{}
 	impls    map[string][]interface{}
-	runs     []func()
-	clears   []func()
 }
 
 func New() *Application {
@@ -74,11 +72,6 @@ func (a *Application) Load(module interface{}) {
 	}); ok {
 		mod.Load(loader)
 	}
-	if mod, ok := module.(interface {
-		Run()
-	}); ok {
-		a.runs = append(a.runs, mod.Run)
-	}
 	if mod, ok := module.(func(Loader)); ok {
 		mod(loader)
 	}
@@ -93,7 +86,7 @@ func AddFuncType(fnNilPtr interface{}, handler func(impls []interface{}) interfa
 	}
 }
 
-func (a *Application) Run() {
+func (a *Application) FinishLoad() {
 	// match provides and requires
 	for name, provide := range a.provides {
 		requires := a.requires[name]
@@ -140,21 +133,4 @@ func (a *Application) Run() {
 				}))
 		}
 	}
-
-	// run
-	for _, fn := range a.runs {
-		fn()
-	}
-	// clear
-	for _, fn := range a.clears {
-		fn()
-	}
-}
-
-func (a *Application) OnRun(fn func()) {
-	a.runs = append(a.runs, fn)
-}
-
-func (a *Application) OnClear(fn func()) {
-	a.clears = append(a.clears, fn)
 }

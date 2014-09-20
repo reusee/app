@@ -22,4 +22,11 @@ func init() {
 			}
 		}
 	})
+	AddFuncType((*func())(nil), func(impls []interface{}) interface{} {
+		return func() {
+			for _, impl := range impls {
+				impl.(func())()
+			}
+		}
+	})
 }

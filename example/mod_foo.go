@@ -15,8 +15,7 @@ type ModFoo struct {
 
 func (m *ModFoo) Load(loader app.Loader) {
 	fmt.Printf("load foo\n")
-}
-
-func (m *ModFoo) Run() {
-	fmt.Printf("run foo\n")
+	loader.Implement("run", func() {
+		fmt.Printf("run foo\n")
+	})
 }

@@ -9,10 +9,6 @@ func TestDep1(t *testing.T) {
 	foo := new(moduleFoo)
 	a.Load(foo)
 	a.Load(new(moduleBar))
-	runned := false
-	a.OnRun(func() {
-		runned = true
-	})
 
 	// multiple provides
 	func() {
@@ -42,30 +38,19 @@ func TestDep1(t *testing.T) {
 		a.Load(new(moduleQuux))
 	}()
 
-	a.Run()
+	a.FinishLoad()
 
 	if foo.bar() != 42 {
 		t.Fatal("foo.bar() is not 42")
 	}
-	if foo.runned != true {
-		t.Fatal("foo is not runned")
-	}
-	if !runned {
-		t.Fatal("not runned")
-	}
 }
 
 type moduleFoo struct {
-	bar    func() int
-	runned bool
+	bar func() int
 }
 
 func (m *moduleFoo) Load(loader Loader) {
 	loader.Require("bar", &m.bar)
-}
-
-func (m *moduleFoo) Run() {
-	m.runned = true
 }
 
 type moduleBar struct{}
@@ -112,7 +97,7 @@ func TestDep3(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.Run()
+		a.FinishLoad()
 	}()
 }
 
@@ -139,7 +124,7 @@ func TestDep4(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		a.Run()
+		a.FinishLoad()
 	}()
 }
 
@@ -153,7 +138,7 @@ func TestDep5(t *testing.T) {
 	a.Load(func(loader Loader) {
 		loader.Require("foo", &i)
 	})
-	a.Run()
+	a.FinishLoad()
 	if i != 42 {
 		t.Fatal("i is not 42")
 	}

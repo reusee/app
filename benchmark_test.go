@@ -11,7 +11,7 @@ func BenchmarkIntSignal(b *testing.B) {
 	a.Load(func(loader Loader) {
 		loader.Implement("foo", func(int) {})
 	})
-	a.Run()
+	a.FinishLoad()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		f(42)
@@ -27,7 +27,7 @@ func BenchmarkStringSignal(b *testing.B) {
 	a.Load(func(loader Loader) {
 		loader.Implement("foo", func(string) {})
 	})
-	a.Run()
+	a.FinishLoad()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		f("foobar")
@@ -41,7 +41,7 @@ func BenchmarkBoolSignal(b *testing.B) {
 		loader.Define("foo", &f)
 		loader.Implement("foo", func(b bool) {})
 	})
-	a.Run()
+	a.FinishLoad()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		f(true)
@@ -57,7 +57,7 @@ func BenchmarkStructSignal(b *testing.B) {
 	a.Load(func(loader Loader) {
 		loader.Implement("foo", func(struct{ int }) {})
 	})
-	a.Run()
+	a.FinishLoad()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		f(struct{ int }{42})

@@ -7,5 +7,10 @@ import (
 var application = app.New()
 
 func main() {
-	application.Run()
+	var run func()
+	application.Load(func(loader app.Loader) {
+		loader.Define("run", &run)
+	})
+	application.FinishLoad()
+	run()
 }
