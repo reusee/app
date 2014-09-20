@@ -98,23 +98,6 @@ func (m *moduleQuux) Load(loader Loader) {
 	loader.Require("quux", 24)
 }
 
-func TestDep2(t *testing.T) {
-	a := New()
-	a.Load(new(moduleBar))
-	func() {
-		defer func() {
-			err := recover()
-			if err == nil {
-				t.Fatal("should panic")
-			}
-			if err.(string) != "bar is not required by any module" {
-				t.Fatal(err)
-			}
-		}()
-		a.Run()
-	}()
-}
-
 func TestDep3(t *testing.T) {
 	a := New()
 	a.Load(new(moduleBar))

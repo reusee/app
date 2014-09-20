@@ -96,10 +96,7 @@ func AddFuncType(fnNilPtr interface{}, handler func(impls []interface{}) interfa
 func (a *Application) Run() {
 	// match provides and requires
 	for name, provide := range a.provides {
-		requires, ok := a.requires[name]
-		if !ok {
-			panic(sp("%s is not required by any module", name))
-		}
+		requires := a.requires[name]
 		provideValue := reflect.ValueOf(provide)
 		for _, require := range requires {
 			requireValue := reflect.ValueOf(require).Elem()
