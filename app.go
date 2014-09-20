@@ -12,8 +12,8 @@ var (
 type Application struct {
 	provides map[string]interface{}
 	requires map[string][]interface{}
-	emits    map[string]interface{}
-	listens  map[string][]interface{}
+	defs     map[string]interface{}
+	impls    map[string][]interface{}
 	runs     []func()
 }
 
@@ -21,17 +21,17 @@ func New() *Application {
 	app := &Application{
 		provides: make(map[string]interface{}),
 		requires: make(map[string][]interface{}),
-		emits:    make(map[string]interface{}),
-		listens:  make(map[string][]interface{}),
+		defs:     make(map[string]interface{}),
+		impls:    make(map[string][]interface{}),
 	}
 	return app
 }
 
 type Loader struct {
-	Provide func(name string, fn interface{})
-	Require func(name string, fn interface{})
-	Emit    func(name string, fn interface{})
-	Listen  func(name string, fn interface{})
+	Provide   func(name string, fn interface{})
+	Require   func(name string, fn interface{})
+	Define    func(name string, fn interface{})
+	Implement func(name string, fn interface{})
 }
 
 func (a *Application) Load(module interface{}) {
@@ -50,22 +50,22 @@ func (a *Application) Load(module interface{}) {
 			}
 			a.requires[name] = append(a.requires[name], fn)
 		},
-		Emit: func(name string, fn interface{}) {
-			t := reflect.TypeOf(fn)
+		Define: func(name string, fnPtr interface{}) {
+			t := reflect.TypeOf(fnPtr)
 			if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Func {
-				panic(sp("module %v: emitter %s is not a pointer to function", modType, name))
+				panic(sp("module %v: argument is not a pointer to function", modType))
 			}
-			if _, in := a.emits[name]; in {
-				panic(sp("module %v: multiple emitter %s", modType, name))
+			if _, in := a.defs[name]; in {
+				panic(sp("module %v: multiple definition of %s", modType, name))
 			}
-			a.emits[name] = fn
+			a.defs[name] = fnPtr
 		},
-		Listen: func(name string, fn interface{}) {
+		Implement: func(name string, fn interface{}) {
 			t := reflect.TypeOf(fn)
 			if t.Kind() != reflect.Func {
-				panic(sp("module %v: listener %s is not a function", modType, name))
+				panic(sp("module %v: implementation of %s is not a function", modType, name))
 			}
-			a.listens[name] = append(a.listens[name], fn)
+			a.impls[name] = append(a.impls[name], fn)
 		},
 	}
 	if mod, ok := module.(interface {
@@ -86,12 +86,12 @@ func (a *Application) Load(module interface{}) {
 	}
 }
 
-var signalHandlers = make(map[reflect.Type]func(emit interface{}, listens []interface{}))
+var fnHandlers = make(map[reflect.Type]func(interface{}, []interface{}))
 
-func AddSignalType(t interface{}, handler func(emit interface{}, listens []interface{}) interface{}) {
-	signalHandlers[reflect.TypeOf(t)] = func(emit interface{}, listens []interface{}) {
-		fn := handler(reflect.ValueOf(emit).Elem().Interface(), listens)
-		reflect.ValueOf(emit).Elem().Set(reflect.ValueOf(fn))
+func AddFuncType(fnNilPtr interface{}, handler func(impls []interface{}) interface{}) {
+	fnHandlers[reflect.TypeOf(fnNilPtr).Elem()] = func(fnPtr interface{}, impls []interface{}) {
+		fn := handler(impls)
+		reflect.ValueOf(fnPtr).Elem().Set(reflect.ValueOf(fn))
 	}
 }
 
@@ -116,44 +116,34 @@ func (a *Application) Run() {
 		panic(sp("%s not provided", name))
 	}
 
-	// handle signals
-	for name, emit := range a.emits {
-		emitType := reflect.TypeOf(emit)
-		listens := a.listens[name]
-		if len(listens) == 0 {
-			panic(sp("%s not listened", name))
+	// handle defs / impls
+	for name, fnPtr := range a.defs {
+		impls := a.impls[name]
+		if len(impls) == 0 {
+			panic(sp("no implementation for %s", name))
 		}
-		for _, listen := range listens {
-			listenType := reflect.TypeOf(listen)
-			if emitType.Elem().NumOut() != listenType.NumIn() {
-				panic(sp("%s not match, emit %v, listen %v", name, emitType.Elem(), listenType))
-			}
-			for i := 0; i < emitType.Elem().NumOut(); i++ {
-				if emitType.Elem().Out(i) != listenType.In(i) {
-					panic(sp("%s not match at arg #%d, emit %v, listen %v", name, i, emitType.Elem().Out(i), listenType.In(i)))
-				}
+		fnType := reflect.TypeOf(fnPtr).Elem()
+		for _, impl := range impls {
+			if t := reflect.TypeOf(impl); t != fnType {
+				panic(sp("defined %v, implemented %v", fnType, t))
 			}
 		}
-		handler, ok := signalHandlers[emitType]
-		if !ok {
-			panic(sp("no handler for emitter type %v", emitType))
-		}
-		handler(emit, listens)
-		/*
-			// generic with reflection
-			listenValues := make([]reflect.Value, 0, len(listens))
-			for _, listen := range listens {
-				listenValues = append(listenValues, reflect.ValueOf(listen))
+		handler, ok := fnHandlers[fnType]
+		if ok {
+			handler(fnPtr, impls)
+		} else {
+			implValues := make([]reflect.Value, 0, len(impls))
+			for _, impl := range impls {
+				implValues = append(implValues, reflect.ValueOf(impl))
 			}
-			emitValue := reflect.ValueOf(reflect.ValueOf(emit).Elem().Interface())
-			reflect.ValueOf(emit).Elem().Set(reflect.MakeFunc(emitType, func(args []reflect.Value) (out []reflect.Value) {
-				out = emitValue.Call(args)
-				for _, listen := range listenValues {
-					listen.Call(out)
-				}
-				return
-			}))
-		*/
+			reflect.ValueOf(fnPtr).Elem().Set(reflect.MakeFunc(fnType,
+				func(args []reflect.Value) (ret []reflect.Value) {
+					for _, impl := range implValues {
+						impl.Call(args)
+					}
+					return
+				}))
+		}
 	}
 
 	// run
