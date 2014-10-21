@@ -190,3 +190,27 @@ func TestFunc5(t *testing.T) {
 		a.FinishLoad()
 	}()
 }
+
+func TestDefineProvide(t *testing.T) {
+	a := New()
+	a.Load(func(loader Loader) {
+		var foo func(int)
+		loader.DefineProvide("foo", &foo)
+	})
+	var foo func(int)
+	called := false
+	a.Load(func(loader Loader) {
+		loader.Implement("foo", func(i int) {
+			called = true
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		loader.Require("foo", &foo)
+	})
+	a.FinishLoad()
+	foo(42)
+	if !called {
+		t.Fatal()
+	}
+}

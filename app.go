@@ -9,10 +9,15 @@ var (
 	sp = fmt.Sprintf
 )
 
+type defineInfo struct {
+	ptr      interface{}
+	provides bool
+}
+
 type Application struct {
 	provides map[string]interface{}
 	requires map[string][]interface{}
-	defs     map[string]interface{}
+	defs     map[string]defineInfo
 	impls    map[string][]interface{}
 }
 
@@ -20,17 +25,18 @@ func New() *Application {
 	app := &Application{
 		provides: make(map[string]interface{}),
 		requires: make(map[string][]interface{}),
-		defs:     make(map[string]interface{}),
+		defs:     make(map[string]defineInfo),
 		impls:    make(map[string][]interface{}),
 	}
 	return app
 }
 
 type Loader struct {
-	Provide   func(name string, fn interface{})
-	Require   func(name string, fn interface{})
-	Define    func(name string, fn interface{})
-	Implement func(name string, fn interface{})
+	Provide       func(name string, fn interface{})
+	Require       func(name string, fn interface{})
+	Define        func(name string, fnPtr interface{})
+	Implement     func(name string, fn interface{})
+	DefineProvide func(name string, fnPtr interface{})
 }
 
 func (a *Application) Load(module interface{}) {
@@ -57,7 +63,7 @@ func (a *Application) Load(module interface{}) {
 			if _, in := a.defs[name]; in {
 				panic(sp("module %v: multiple definition of %s", modType, name))
 			}
-			a.defs[name] = fnPtr
+			a.defs[name] = defineInfo{fnPtr, false}
 		},
 		Implement: func(name string, fn interface{}) {
 			t := reflect.TypeOf(fn)
@@ -65,6 +71,16 @@ func (a *Application) Load(module interface{}) {
 				panic(sp("module %v: implementation of %s is not a function", modType, name))
 			}
 			a.impls[name] = append(a.impls[name], fn)
+		},
+		DefineProvide: func(name string, fnPtr interface{}) {
+			t := reflect.TypeOf(fnPtr)
+			if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Func {
+				panic(sp("module %v: argument is not a pointer to function", modType))
+			}
+			if _, in := a.defs[name]; in {
+				panic(sp("module %v: multiple definition of %s", modType, name))
+			}
+			a.defs[name] = defineInfo{fnPtr, true}
 		},
 	}
 	if mod, ok := module.(interface {
@@ -87,25 +103,9 @@ func AddFuncType(fnNilPtr interface{}, handler func(impls []interface{}) interfa
 }
 
 func (a *Application) FinishLoad() {
-	// match provides and requires
-	for name, provide := range a.provides {
-		requires := a.requires[name]
-		provideValue := reflect.ValueOf(provide)
-		for _, require := range requires {
-			requireValue := reflect.ValueOf(require).Elem()
-			if provideValue.Type() != requireValue.Type() {
-				panic(sp("%s not match, %v provided, %v required", name, provideValue.Type(), requireValue.Type()))
-			}
-			reflect.ValueOf(require).Elem().Set(provideValue)
-		}
-		delete(a.requires, name)
-	}
-	for name, _ := range a.requires {
-		panic(sp("%s not provided", name))
-	}
-
 	// handle defs / impls
-	for name, fnPtr := range a.defs {
+	for name, info := range a.defs {
+		fnPtr := info.ptr
 		impls := a.impls[name]
 		if len(impls) == 0 {
 			panic(sp("no implementation for %s", name))
@@ -132,5 +132,26 @@ func (a *Application) FinishLoad() {
 					return
 				}))
 		}
+		if info.provides {
+			a.provides[name] = reflect.ValueOf(fnPtr).Elem().Interface()
+		}
 	}
+
+	// match provides and requires
+	for name, provide := range a.provides {
+		requires := a.requires[name]
+		provideValue := reflect.ValueOf(provide)
+		for _, require := range requires {
+			requireValue := reflect.ValueOf(require).Elem()
+			if provideValue.Type() != requireValue.Type() {
+				panic(sp("%s not match, %v provided, %v required", name, provideValue.Type(), requireValue.Type()))
+			}
+			requireValue.Set(provideValue)
+		}
+		delete(a.requires, name)
+	}
+	for name, _ := range a.requires {
+		panic(sp("%s not provided", name))
+	}
+
 }
