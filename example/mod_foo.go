@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	app ".."
+	"github.com/reusee/app"
 )
 
 func init() {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	app ".."
+	"github.com/reusee/app"
 )
 
 var application = app.New()
